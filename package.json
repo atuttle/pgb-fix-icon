@@ -1,0 +1,27 @@
+{
+  "name": "pgb-fix-icon",
+  "version": "0.0.1",
+  "description": "Fixes the Android-icon-too-small-on-XHDPI-devices bug in PhoneGap Build",
+  "main": "unfuck",
+  "dependencies": {
+    "coloring": "~0.1.0",
+    "underscore": "~1.4.4",
+    "commander": "~1.1.1",
+    "xml2js": "~0.2.7"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/atuttle/pgb-fix-icon"
+  },
+  "keywords": [
+    "phonegap",
+    "phonegapbuild",
+    "android"
+  ],
+  "author": "Adam Tuttle (adam@fusiongrokker.com)",
+  "license": "MIT"
+}

@@ -1,0 +1,200 @@
+#!/usr/bin/env node
+
+var coloring = require('coloring')
+	,program  = require('commander')
+	,xml2js   = require('xml2js')
+	,exec     = require('child_process').exec
+	,fs       = require('fs')
+	,_        = require('underscore');
+
+var tmpdir = './tmp'
+	,parser = new xml2js.Parser();
+
+program
+	.version('0.0.0')
+	.option('-i, --in-file <file>', 'The APK that needs to be un-fucked')
+	.option('-o, --out-file <file>', 'The APK file to write when done')
+	.option('-c, --config-xml <file>', 'Your app\'s config.xml')
+	.option('-k, --keystore <file>', 'Signing keystore')
+	.parse(process.argv);
+
+
+validateInputs(function(){
+	var outFileSigned = program.outFile.replace('.apk', '-signed.apk');
+
+	//read config.xml
+	var config = fs.readFileSync(program.configXml, 'utf8');
+	// console.log(config);
+
+	//make workspace
+	fs.mkdir(tmpdir);
+
+	parser.parseString(config, function (err, result) {
+		if (err){
+			console.log('XML PARSE ERROR:'.red);
+			console.error(err);
+			process.exit(1);
+		}
+
+		//find the appropriate icon to copy
+		// console.dir(result.widget.icon);
+		var targetIcon = null;
+		_.each(result.widget.icon, function(el, ix, list){
+			if (el.$['gap:density'] && el.$['gap:density'] === 'xhdpi'){
+				targetIcon = '/assets/www/' + el.$.src;
+				// console.log(targetIcon);
+			}
+		});
+
+		//found a match?
+		if (targetIcon === null){
+			console.log('XHDPI icon not found :('.red);
+			process.exit(1);
+		}
+
+		// apktool decode --force inputApk tmpdir
+		console.log('unpacking apk...')
+		var apktool = exec('apktool decode --force ' + program.inFile + ' ' + tmpdir, function(error, stdout, stderr){
+			if (error){
+				console.log('apktool unpack: error'.red);
+				console.error(error);
+				process.exit(1);
+			}
+
+			console.log('apktool unpack: success'.green);
+
+			exec('cp -v ' + tmpdir + targetIcon + ' ' + tmpdir + '/res/drawable-xhdpi/icon.png', function(error, stdout, stderr){
+				if (error){
+					console.log('icon copy: error'.red);
+					console.error(error);
+					process.exit(1);
+				}
+
+				console.log(stdout);
+				console.log('icon copy: success'.green);
+
+				//apktool build tmpdir outputApk
+				console.log('packing apk...')
+				exec('apktool build ' + tmpdir + ' ' + program.outFile, function(error, stdout, stderr){
+					if (error){
+						console.log('apktool pack: error'.red);
+						console.error(error);
+						process.exit(1);
+					}
+
+					console.log(stdout);
+					console.log('apktool pack: success'.green);
+
+					var storepass, keypass, alias;
+					//prompt for keystore storepass
+					program.prompt('Keystore Storepass: ', function(pass){
+						storepass = pass;
+						// process.stdin.destroy();
+
+						//prompt for keypass
+						program.prompt('Keystore Keypass: ', function(pass){
+							keypass = pass;
+							// process.stdin.destroy();
+
+							//prompt for alias
+							program.prompt('Alias (pgbuild): ', function(a){
+								a = a || 'pgbuild';
+								console.log('debug: alias=%s'.yellow, a);
+								alias = a;
+
+								console.log('beginning jar-sign...');
+								//now that we have all of the pieces needed to sign, sign it
+								exec('jarsigner -verbose -keystore ' + program.keystore
+									+ ' -storepass ' + storepass
+									+ ' -keypass ' + keypass
+									+ ' -digestalg SHA1 -sigalg MD5withRSA -sigfile CERT -signedjar ' + outFileSigned
+									+ ' ' + program.outFile
+									+ ' ' + alias
+									,function(error, stdout, stderr){
+										if (error){
+											console.log('jarsigner: error'.red);
+											console.error(error);
+											process.exit(1);
+										}
+
+										// console.log(stdout); //jarsigner output
+
+										//align images: http://developer.android.com/tools/help/zipalign.html
+										console.log('running zipalign...');
+										exec('zipalign -v -f 4 ' + outFileSigned + ' ' + program.outFile, function(error, stdout, stderr){
+											if (error){
+												console.log('zipalign: error'.red);
+												console.error(error);
+												process.exit(1);
+											}
+
+											console.log('ICON FIXED: SUCCESS!'.green);
+
+											//cleanup
+											exec('rm -rf ' + tmpdir + ' ' + outFileSigned, function(error, stdout, stderr){
+												if (error){
+													console.log('cleanup: error'.red);
+													console.error(error);
+													process.exit(1);
+												}
+
+												process.exit(0);
+											});
+										});
+									}
+								);
+							});
+						});
+					});
+				});
+			});
+		});
+	});
+});
+
+//---------------------------
+//---------------------------
+
+function validateInputs(success){
+	if (!program.configXml){
+		console.log('config.xml path is required'.red);
+		process.exit(1);
+	}
+	if (!fs.existsSync(program.configXml)){
+		console.log('config.xml not found (%s)'.red, program.configXml);
+		process.exit(1);
+	}
+
+	if (!program.inFile){
+		console.log('Input file is required'.red);
+		process.exit(1);
+	}
+	if (program.inFile.slice(-4).toUpperCase() !== '.APK'){
+		console.log('Input file is not an APK'.red);
+		process.exit(1);
+	}
+	if (!fs.existsSync(program.inFile)){
+		console.log('Input file does not exist'.red);
+		process.exit(1);
+	}
+
+	if (!program.outFile){
+		console.log('Output file is required'.red);
+		process.exit(1);
+	}
+	if (program.outFile.slice(-4).toUpperCase() !== '.APK'){
+		console.log('Output file is not an APK (%s)'.red, program.inFile.slice(-4).toUpperCase());
+		process.exit(1);
+	}
+
+	if (!program.keystore){
+		console.log('Keystore file is required'.red);
+		process.exit(1);
+	}
+	if (!fs.existsSync(program.keystore)){
+		console.log('Keystore file does not exist'.red);
+		process.exit(1);
+	}
+
+	success();
+}
