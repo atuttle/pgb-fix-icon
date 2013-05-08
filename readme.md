@@ -35,8 +35,8 @@ After the apk has been unpacked, fixed, and re-packed, it will prompt you for yo
 
 * Node.js
 * jarsigner
-* apktool
-* zipalign
+* [apktool][apktool] (hint: you need two downloads: the jar file (listed as all-platforms), and your platform-specific download as well.)
+* [zipalign][za]
 
 ## TODO
 
@@ -50,3 +50,4 @@ MIT License
 
 [bug]: https://github.com/phonegap/build/issues/9
 [za]: http://developer.android.com/tools/help/zipalign.html
+[apktool]: https://code.google.com/p/android-apktool/
