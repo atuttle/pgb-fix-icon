@@ -1,6 +1,6 @@
 {
   "name": "pgb-fix-icon",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Fixes the Android-icon-too-small-on-XHDPI-devices bug in PhoneGap Build",
   "main": "pgb-fix-icon",
   "dependencies": {
