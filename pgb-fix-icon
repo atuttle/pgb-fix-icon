@@ -7,7 +7,7 @@ var coloring = require('coloring')
 	,fs       = require('fs')
 	,_        = require('underscore');
 
-var tmpdir = './tmp'
+var tmpdir = './___pgb-fix-icon_tmp'
 	,parser = new xml2js.Parser();
 
 program
