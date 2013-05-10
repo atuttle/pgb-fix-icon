@@ -2,7 +2,7 @@
 
 There's this [shitty bug in Phonegap Build][bug]. Android builds use the HDPI icon and splash screen on XHDPI devices.
 
-This script fixes the icon (todo: splash screen), recompiles the APK, re-signs it, and re-[zipaligns][za] it.
+This script fixes the icon, recompiles the APK, re-signs it (prompting you for your keystore passwords & alias), and re-[zipaligns][za] it.
 
 ## Install
 
@@ -34,14 +34,13 @@ After the apk has been unpacked, fixed, and re-packed, it will prompt you for yo
 ## Requirements
 
 * Node.js
-* jarsigner
+* jarsigner (comes with Java)
 * [apktool][apktool] (hint: you need two downloads: the jar file (listed as all-platforms), and your platform-specific download as well.)
 * [zipalign][za]
 
 ## TODO
 
 * Switch CLI libraries -- (apparently commander.js doesn't work well since node 0.8? it crashes if I try to use masked prompts for passwords)
-* Fix the XHDPI splash screen as well.
 
 ## License
 

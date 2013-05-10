@@ -38,17 +38,29 @@ validateInputs(function(){
 
 		//find the appropriate icon to copy
 		// console.dir(result.widget.icon);
-		var targetIcon = null;
+		var targetIcon = null
+			,targetSplash = null
+			,splashHeight = 0;
 		_.each(result.widget.icon, function(el, ix, list){
 			if (el.$['gap:density'] && el.$['gap:density'] === 'xhdpi'){
 				targetIcon = '/assets/www/' + el.$.src;
 				// console.log(targetIcon);
 			}
 		});
+		_.each(result.widget['gap:splash'], function(el, ix, list){
+			if (parseInt(el.$.height) > splashHeight){
+				splashHeight = parseInt(el.$.height);
+				targetSplash = '/assets/www/' + el.$.src;
+			}
+		});
 
-		//found a match?
+		//found icon & splash?
 		if (targetIcon === null){
 			console.log('XHDPI icon not found :('.red);
+			process.exit(1);
+		}
+		if (targetSplash === null){
+			console.log('Couldn\'t find any splash screens :('.red);
 			process.exit(1);
 		}
 
@@ -73,76 +85,87 @@ validateInputs(function(){
 				console.log(stdout);
 				console.log('icon copy: success'.green);
 
-				//apktool build tmpdir outputApk
-				console.log('packing apk...')
-				exec('apktool build ' + tmpdir + ' ' + program.outFile, function(error, stdout, stderr){
+				exec('cp -v ' + tmpdir + targetSplash + ' ' + tmpdir + '/res/drawable-xhdpi/splash.png', function(error, stdout, stderr){
 					if (error){
-						console.log('apktool pack: error'.red);
+						console.log('splash copy: error'.red);
 						console.error(error);
 						process.exit(1);
 					}
 
 					console.log(stdout);
-					console.log('apktool pack: success'.green);
+					console.log('splash copy: success'.green);
 
-					var storepass, keypass, alias;
-					//prompt for keystore storepass
-					program.prompt('Keystore Storepass: ', function(pass){
-						storepass = pass;
-						// process.stdin.destroy();
+					//apktool build tmpdir outputApk
+					console.log('packing apk...')
+					exec('apktool build ' + tmpdir + ' ' + program.outFile, function(error, stdout, stderr){
+						if (error){
+							console.log('apktool pack: error'.red);
+							console.error(error);
+							process.exit(1);
+						}
 
-						//prompt for keypass
-						program.prompt('Keystore Keypass: ', function(pass){
-							keypass = pass;
+						console.log(stdout);
+						console.log('apktool pack: success'.green);
+
+						var storepass, keypass, alias;
+						//prompt for keystore storepass
+						program.prompt('Keystore Storepass: ', function(pass){
+							storepass = pass;
 							// process.stdin.destroy();
 
-							//prompt for alias
-							program.prompt('Alias (pgbuild): ', function(a){
-								a = a || 'pgbuild';
-								console.log('debug: alias=%s'.yellow, a);
-								alias = a;
+							//prompt for keypass
+							program.prompt('Keystore Keypass: ', function(pass){
+								keypass = pass;
+								// process.stdin.destroy();
 
-								console.log('beginning jar-sign...');
-								//now that we have all of the pieces needed to sign, sign it
-								exec('jarsigner -verbose -keystore ' + program.keystore
-									+ ' -storepass ' + storepass
-									+ ' -keypass ' + keypass
-									+ ' -digestalg SHA1 -sigalg MD5withRSA -sigfile CERT -signedjar ' + outFileSigned
-									+ ' ' + program.outFile
-									+ ' ' + alias
-									,function(error, stdout, stderr){
-										if (error){
-											console.log('jarsigner: error'.red);
-											console.error(error);
-											process.exit(1);
-										}
+								//prompt for alias
+								program.prompt('Alias (pgbuild): ', function(a){
+									a = a || 'pgbuild';
+									console.log('debug: alias=%s'.yellow, a);
+									alias = a;
 
-										// console.log(stdout); //jarsigner output
-
-										//align images: http://developer.android.com/tools/help/zipalign.html
-										console.log('running zipalign...');
-										exec('zipalign -v -f 4 ' + outFileSigned + ' ' + program.outFile, function(error, stdout, stderr){
+									console.log('beginning jar-sign...');
+									//now that we have all of the pieces needed to sign, sign it
+									exec('jarsigner -verbose -keystore ' + program.keystore
+										+ ' -storepass ' + storepass
+										+ ' -keypass ' + keypass
+										+ ' -digestalg SHA1 -sigalg MD5withRSA -sigfile CERT -signedjar ' + outFileSigned
+										+ ' ' + program.outFile
+										+ ' ' + alias
+										,function(error, stdout, stderr){
 											if (error){
-												console.log('zipalign: error'.red);
+												console.log('jarsigner: error'.red);
 												console.error(error);
 												process.exit(1);
 											}
 
-											console.log('ICON FIXED: SUCCESS!'.green);
+											// console.log(stdout); //jarsigner output
 
-											//cleanup
-											exec('rm -rf ' + tmpdir + ' ' + outFileSigned, function(error, stdout, stderr){
+											//align images: http://developer.android.com/tools/help/zipalign.html
+											console.log('running zipalign...');
+											exec('zipalign -v -f 4 ' + outFileSigned + ' ' + program.outFile, function(error, stdout, stderr){
 												if (error){
-													console.log('cleanup: error'.red);
+													console.log('zipalign: error'.red);
 													console.error(error);
 													process.exit(1);
 												}
 
-												process.exit(0);
+												console.log('ICON FIXED: SUCCESS!'.green);
+
+												//cleanup
+												exec('rm -rf ' + tmpdir + ' ' + outFileSigned, function(error, stdout, stderr){
+													if (error){
+														console.log('cleanup: error'.red);
+														console.error(error);
+														process.exit(1);
+													}
+
+													process.exit(0);
+												});
 											});
-										});
-									}
-								);
+										}
+									);
+								});
 							});
 						});
 					});
